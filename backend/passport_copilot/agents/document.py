@@ -2,7 +2,7 @@ from google.adk import Agent
 from ..tools.document_tools import extract_document_fields, compare_documents
 import os
 
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-3.8-flash")
 
 document_agent = Agent(
     name="document_agent",

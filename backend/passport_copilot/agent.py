@@ -3,7 +3,7 @@ from google.adk import Agent
 from google.adk.tools import AgentTool
 from .agents import intake_agent, policy_agent, document_agent, handoff_agent
 
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-3.8-flash")
 
 orchestrator_instruction = """
 You are the Orchestrator for Passport Readiness Copilot.

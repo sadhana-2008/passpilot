@@ -2,7 +2,7 @@ from google.adk import Agent
 from ..tools.handoff_tools import get_appointment_slots, book_appointment, get_application_status, generate_handoff_pdf
 import os
 
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-3.8-flash")
 
 handoff_agent = Agent(
     name="handoff_agent",

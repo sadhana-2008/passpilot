@@ -2,7 +2,7 @@ from google.adk import Agent
 from ..tools.intake_tools import save_case_profile
 import os
 
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-3.8-flash")
 
 intake_agent = Agent(
     name="intake_agent",

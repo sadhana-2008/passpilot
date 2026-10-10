@@ -21,7 +21,7 @@ An unofficial assistant built for DevFest on Campus 2026 (GDG Chennai). It helps
    Create a `.env` file (you can copy `.env.example`):
    ```
    GOOGLE_API_KEY=your_gemini_api_key
-   MODEL_NAME=gemini-2.5-flash
+   MODEL_NAME=gemini-3.8-flash
    USE_FIRESTORE=false
    ```
 

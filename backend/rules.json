@@ -1,0 +1,215 @@
+{
+  "meta": {
+    "schema_version": "1.1",
+    "project": "Passport Readiness Copilot",
+    "domain": "passport_seva",
+    "disclaimer": "Unofficial assistant. Uses synthetic/mock data. Final decisions are made by the Passport Office.",
+    "last_reviewed": null,
+    "reviewed_by": null
+  },
+
+  "global_rules": {
+    "never_impersonate_authority": true,
+    "never_decide_eligibility": true,
+    "require_citation_for_rules": true,
+    "citations_only_from": "rules.json",
+    "synthetic_data_only": true,
+    "no_real_government_api_calls": true,
+    "no_irreversible_actions": true,
+    "require_user_confirmation_before": ["book_appointment", "generate_handoff_pdf"],
+    "never_ask_for": ["passport number", "aadhaar number", "other real identifiers"],
+    "label_mock_results_as": "MOCK",
+    "append_disclaimer_to_final_reply": true,
+    "supported_languages": ["en", "ta", "hi"],
+    "reply_in_user_language": true,
+    "officer_confirmation_topics": [
+      "eligibility",
+      "approval or rejection",
+      "police verification outcome",
+      "legal validity of a document",
+      "fees and timelines not found in rules"
+    ]
+  },
+
+  "lookup": {
+    "search_fields": ["title", "keywords", "rule_text"],
+    "max_results": 5,
+    "only_status": "verified",
+    "filter_by_case_profile": true
+  },
+
+  "case_profile_fields": {
+    "application_type": ["fresh", "renewal"],
+    "is_minor": [true, false],
+    "name_change": [true, false],
+    "tatkal": [true, false],
+    "lost_or_damaged": [true, false]
+  },
+
+  "rules": [
+    {
+      "rule_id": "R001",
+      "title": "Name must match across documents",
+      "category": "identity",
+      "applies_when": {},
+      "keywords": ["name", "mismatch", "spelling", "initials"],
+      "rule_text": "[TO VERIFY] Applicant name must be consistent across the application and supporting documents.",
+      "checklist_item": "Make sure your name is spelled the same on every document",
+      "validator": "validate_name_match",
+      "params": { "case_sensitive": false, "allow_initial_expansion": true },
+      "needs_officer_confirmation": false,
+      "on_fail": {
+        "issue_type": "name_mismatch",
+        "severity": "blocking",
+        "flag_field": "name",
+        "suggested_fix": "Provide a supporting document showing the name exactly as on the application."
+      },
+      "source_name": "TO FILL: official page name",
+      "source_url": "TO FILL: specific official page URL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    },
+    {
+      "rule_id": "R002",
+      "title": "Date of birth must match across documents",
+      "category": "identity",
+      "applies_when": {},
+      "keywords": ["dob", "date of birth", "birth", "mismatch"],
+      "rule_text": "[TO VERIFY] Date of birth must be the same on the application and the birth proof.",
+      "checklist_item": "Check your date of birth is identical on all documents",
+      "validator": "validate_dob",
+      "params": { "accepted_formats": ["DD/MM/YYYY", "DD-MM-YYYY"] },
+      "needs_officer_confirmation": false,
+      "on_fail": {
+        "issue_type": "dob_mismatch",
+        "severity": "blocking",
+        "flag_field": "dob",
+        "suggested_fix": "Provide a birth proof that matches the date of birth on the application."
+      },
+      "source_name": "TO FILL",
+      "source_url": "TO FILL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    },
+    {
+      "rule_id": "R003",
+      "title": "Address proof must not be expired",
+      "category": "address",
+      "applies_when": {},
+      "keywords": ["address", "proof", "expired", "validity"],
+      "rule_text": "[TO VERIFY] Address proof must be current and match the address on the application.",
+      "checklist_item": "Bring a current, unexpired address proof",
+      "validator": "validate_expiry",
+      "params": { "check_expiry_date": true },
+      "needs_officer_confirmation": true,
+      "on_fail": {
+        "issue_type": "expired_proof",
+        "severity": "blocking",
+        "flag_field": "address_proof",
+        "suggested_fix": "Replace with a valid, unexpired address proof."
+      },
+      "source_name": "TO FILL",
+      "source_url": "TO FILL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    },
+    {
+      "rule_id": "R004",
+      "title": "Photo format requirements",
+      "category": "photo",
+      "applies_when": {},
+      "keywords": ["photo", "format", "size", "background"],
+      "rule_text": "[TO VERIFY] Photo must meet the stated size and background requirements.",
+      "checklist_item": "Use a photo that meets the official format",
+      "validator": "validate_photo",
+      "params": { "min_width_px": null, "min_height_px": null, "background": null },
+      "needs_officer_confirmation": false,
+      "on_fail": {
+        "issue_type": "wrong_photo_format",
+        "severity": "warning",
+        "flag_field": "photo",
+        "suggested_fix": "Retake the photo following the official format."
+      },
+      "source_name": "TO FILL",
+      "source_url": "TO FILL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    },
+    {
+      "rule_id": "R005",
+      "title": "Extra documents when name has changed",
+      "category": "name_change",
+      "applies_when": { "name_change": [true] },
+      "keywords": ["name change", "marriage", "gazette", "affidavit"],
+      "rule_text": "[TO VERIFY] A name change needs supporting proof of the change.",
+      "checklist_item": "Bring proof of your name change",
+      "validator": null,
+      "params": {},
+      "needs_officer_confirmation": true,
+      "on_fail": null,
+      "source_name": "TO FILL",
+      "source_url": "TO FILL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    },
+    {
+      "rule_id": "R006",
+      "title": "Additional requirements for minors",
+      "category": "minor",
+      "applies_when": { "is_minor": [true] },
+      "keywords": ["minor", "child", "parent", "guardian", "consent"],
+      "rule_text": "[TO VERIFY] Applications for minors have extra parental or guardian requirements.",
+      "checklist_item": "Bring the parent or guardian documents required for a minor",
+      "validator": null,
+      "params": {},
+      "needs_officer_confirmation": true,
+      "on_fail": null,
+      "source_name": "TO FILL",
+      "source_url": "TO FILL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    },
+    {
+      "rule_id": "R007",
+      "title": "Lost or damaged passport",
+      "category": "lost_or_damaged",
+      "applies_when": { "lost_or_damaged": [true] },
+      "keywords": ["lost", "damaged", "stolen", "police report"],
+      "rule_text": "[TO VERIFY] A lost or damaged passport needs additional documents.",
+      "checklist_item": "Bring the extra documents for a lost or damaged passport",
+      "validator": null,
+      "params": {},
+      "needs_officer_confirmation": true,
+      "on_fail": null,
+      "source_name": "TO FILL",
+      "source_url": "TO FILL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    },
+    {
+      "rule_id": "R008",
+      "title": "Tatkal scheme requirements",
+      "category": "tatkal",
+      "applies_when": { "tatkal": [true] },
+      "keywords": ["tatkal", "urgent", "fast", "fee"],
+      "rule_text": "[TO VERIFY] Tatkal applications have their own document and fee requirements.",
+      "checklist_item": "Review the Tatkal-specific documents",
+      "validator": null,
+      "params": {},
+      "needs_officer_confirmation": true,
+      "on_fail": null,
+      "source_name": "TO FILL",
+      "source_url": "TO FILL",
+      "verified_on": null,
+      "verified_by": null,
+      "status": "draft"
+    }
+  ]
+}

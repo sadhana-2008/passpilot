@@ -53,7 +53,7 @@ def test_safety_callbacks():
     from backend.passport_copilot.safety import enforce_safety_instructions
     from google.adk import Agent
     
-    agent = Agent(name="test", instruction="Test", model="gemini-2.5-flash")
+    agent = Agent(name="test", instruction="Test", model="gemini-3.8-flash")
     agent = enforce_safety_instructions(agent)
     
     assert "CRITICAL SAFETY RULES:" in agent.instruction
