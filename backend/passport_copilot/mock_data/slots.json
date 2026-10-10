@@ -1,0 +1,7 @@
+{
+  "slots": [
+    { "id": "slot-1", "city": "Chennai", "date": "2026-10-15T10:00:00", "type": "Normal" },
+    { "id": "slot-2", "city": "Chennai", "date": "2026-10-12T14:30:00", "type": "Tatkal" },
+    { "id": "slot-3", "city": "Coimbatore", "date": "2026-10-20T11:00:00", "type": "Normal" }
+  ]
+}

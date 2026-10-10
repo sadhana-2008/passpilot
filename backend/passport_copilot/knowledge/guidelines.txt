@@ -1,0 +1,11 @@
+[PLACEHOLDER]
+Please replace this file with the real official text.
+---
+Section: Fresh Passport
+A fresh passport application requires proof of address and proof of date of birth.
+
+Section: Minor Passport
+For a minor, parents' passports can serve as proof of address. Both parents must consent.
+
+Section: Tatkal
+Tatkal requires additional verification. Minor name changes are not allowed under Tatkal.
