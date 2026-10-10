@@ -28,6 +28,10 @@ export interface TraceEntry {
   time: string;
 }
 
+/* ── Language ───────────────────────────────────────────────────────── */
+
+export type Language = "en" | "ta" | "hi";
+
 /* ── Chat ───────────────────────────────────────────────────────────── */
 
 export type ChatRole = "agent" | "user";
@@ -36,13 +40,19 @@ export interface ChatMessage {
   id?: string;
   role: ChatRole;
   text: string;
-  type?: "text" | "declaration" | "appointment";
+  type?: "text" | "declaration" | "appointment" | "handoff_banner";
+  agentName?: "Intake Agent" | "Document Checker" | "Guidance Agent" | "Status & Follow-up Agent" | "Orchestrator";
   declarationText?: string;
   appointmentData?: {
     location: string;
     date: string;
     time: string;
     reference: string;
+  };
+  handoffInfo?: {
+    fromAgent: string;
+    toAgent: string;
+    summary: string;
   };
   isStreaming?: boolean;
 }
@@ -116,5 +126,8 @@ export interface CaseState {
   session: SessionInfo | null;
   /** Connection status with FastAPI backend */
   sessionStatus: "connecting" | "connected" | "error";
+  /** Active language selection for multilingual guidance (en, ta, hi) */
+  language: Language;
 }
+
 

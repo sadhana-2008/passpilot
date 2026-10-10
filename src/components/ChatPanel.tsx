@@ -134,6 +134,51 @@ function AppointmentCard({
   );
 }
 
+/* ── Handoff Banner Component ───────────────────────────────────────── */
+
+function HandoffBanner({
+  fromAgent,
+  toAgent,
+  summary,
+}: {
+  fromAgent: string;
+  toAgent: string;
+  summary: string;
+}) {
+  return (
+    <div className="w-full my-1 rounded-[var(--radius-button)] border border-accent/30 bg-accent-bg/40 px-3 py-2 text-xs flex items-center gap-2 select-none animate-fade-in">
+      <div className="w-5 h-5 rounded-full bg-accent/30 flex items-center justify-center shrink-0 text-accent font-bold text-[10px]">
+        ⚡
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 font-semibold text-accent text-[11px] tracking-tight">
+          <span>{fromAgent}</span>
+          <span className="text-text-muted">→</span>
+          <span className="text-text">{toAgent}</span>
+        </div>
+        <p className="text-[11px] text-text-secondary truncate">{summary}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Agent Badge Helpers ────────────────────────────────────────────── */
+
+function getAgentTag(name?: string) {
+  switch (name) {
+    case "Intake Agent":
+      return { tag: "INTAKE", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" };
+    case "Document Checker":
+      return { tag: "DOCS", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" };
+    case "Guidance Agent":
+      return { tag: "GUIDE", color: "bg-violet-500/20 text-violet-400 border-violet-500/30" };
+    case "Status & Follow-up Agent":
+      return { tag: "STATUS", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" };
+    default:
+      return { tag: "CORE", color: "bg-accent/20 text-accent border-accent/30" };
+  }
+}
+
 /* ── Main panel ─────────────────────────────────────────────────────── */
 
 export default function ChatPanel() {
@@ -190,7 +235,12 @@ export default function ChatPanel() {
     <section className="flex flex-col rounded-[var(--radius-panel)] border border-border bg-panel min-h-0">
       {/* Panel header: Real-time ADK status */}
       <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text">PassPilot Chat</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-text">PassPilot Chat</h2>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/20 text-accent border border-accent/30">
+            {state.language === "ta" ? "தமிழ்" : state.language === "hi" ? "हिंदी" : "EN"}
+          </span>
+        </div>
         <span
           className={`text-[11px] font-medium tracking-tight px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${
             state.sessionStatus === "connected"
@@ -236,6 +286,19 @@ export default function ChatPanel() {
           state.chat.map((msg, idx) => {
             const isAgent = msg.role === "agent";
 
+            if (msg.type === "handoff_banner" && msg.handoffInfo) {
+              return (
+                <HandoffBanner
+                  key={msg.id || idx}
+                  fromAgent={msg.handoffInfo.fromAgent}
+                  toAgent={msg.handoffInfo.toAgent}
+                  summary={msg.handoffInfo.summary}
+                />
+              );
+            }
+
+            const agentMeta = getAgentTag(msg.agentName);
+
             return (
               <div
                 key={msg.id || idx}
@@ -243,13 +306,16 @@ export default function ChatPanel() {
                   isAgent ? "justify-start" : "justify-end"
                 }`}
               >
-                {/* Agent avatar (left side only) */}
+                {/* Agent avatar with identity badge */}
                 {isAgent && (
                   <div
                     className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center shrink-0 mt-0.5 select-none"
                     aria-hidden="true"
+                    title={msg.agentName || "Orchestrator"}
                   >
-                    <span className="text-[10px] font-bold text-accent">PP</span>
+                    <span className="text-[10px] font-bold text-accent">
+                      {agentMeta.tag.substring(0, 2)}
+                    </span>
                   </div>
                 )}
 
@@ -264,6 +330,20 @@ export default function ChatPanel() {
                   `}
                   style={{ maxWidth: "85%", fontSize: "15px" }}
                 >
+                  {/* Agent Header Tag */}
+                  {isAgent && (
+                    <div className="flex items-center gap-1.5 mb-1 select-none">
+                      <span className="text-[11px] font-semibold text-text-secondary">
+                        {msg.agentName || "PassPilot Assistant"}
+                      </span>
+                      <span
+                        className={`text-[9px] font-bold px-1 py-0.2 rounded border ${agentMeta.color}`}
+                      >
+                        {agentMeta.tag}
+                      </span>
+                    </div>
+                  )}
+
                   {msg.isStreaming && !msg.text ? (
                     <div className="py-1">
                       <TypingIndicator />
@@ -294,14 +374,13 @@ export default function ChatPanel() {
           })
         )}
 
-
         {/* Typing indicator */}
         {isTyping && <TypingIndicator />}
       </div>
 
       {/* ── Quick-reply chips + input bar ─────────────────────────── */}
       <div className="px-3 pb-3 pt-2 border-t border-border shrink-0 space-y-2">
-        {/* Quick-reply chips: smaller so all 3 fit on a single row without wrapping */}
+        {/* Quick-reply chips */}
         <div
           className="flex items-center gap-1.5 overflow-x-hidden flex-nowrap"
           role="toolbar"
@@ -322,7 +401,6 @@ export default function ChatPanel() {
 
         {/* Input bar */}
         <div className="flex items-center gap-2 rounded-[var(--radius-button)] bg-raised border border-border px-3 py-1.5 focus-within:border-accent/50 transition-colors">
-          {/* Attach button: triggers simulated upload for currently selected row */}
           <button
             type="button"
             disabled={isReading}
@@ -357,7 +435,13 @@ export default function ChatPanel() {
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSend();
             }}
-            placeholder="Describe the applicant's situation…"
+            placeholder={
+              state.language === "ta"
+                ? "உங்கள் கேள்வியை உள்ளிடவும்..."
+                : state.language === "hi"
+                ? "अपना प्रश्न दर्ज करें..."
+                : "Describe the applicant's situation…"
+            }
             className="flex-1 bg-transparent text-sm text-text placeholder:text-text-muted outline-none"
             aria-label="Message PassPilot"
           />
@@ -378,9 +462,9 @@ export default function ChatPanel() {
           </button>
         </div>
 
-        {/* Disclaimer */}
+        {/* Mandatory Hackathon Disclaimer */}
         <p className="text-[11px] text-text-muted text-center select-none">
-          An officer makes the final decision.
+          Guidance only. Always verify on the official Passport Seva / MEA portal.
         </p>
       </div>
 

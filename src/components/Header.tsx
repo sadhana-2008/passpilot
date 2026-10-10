@@ -6,6 +6,7 @@
  *  - Right:  Reset demo button, "Synthetic data only" pill + applicant chip
  */
 
+import type { Language } from "../types";
 import { useCase } from "../state/caseReducer";
 import Stepper from "./Stepper";
 
@@ -17,12 +18,22 @@ const STAGE_TO_STEP: Record<string, number> = {
   Book: 4,
 };
 
+const LANGUAGES: { id: Language; label: string; native: string }[] = [
+  { id: "en", label: "EN", native: "English" },
+  { id: "ta", label: "தமிழ்", native: "Tamil" },
+  { id: "hi", label: "हिंदी", native: "Hindi" },
+];
+
 export default function Header() {
   const { state, stage, dispatch } = useCase();
   const activeStep = STAGE_TO_STEP[stage] ?? 1;
 
   const handleReset = () => {
     dispatch({ type: "RESET" });
+  };
+
+  const handleLanguageChange = (lang: Language) => {
+    dispatch({ type: "SET_LANGUAGE", payload: lang });
   };
 
   return (
@@ -48,8 +59,35 @@ export default function Header() {
         <Stepper activeStep={activeStep} />
       </div>
 
-      {/* ── Right: pills / chips / reset button ──────────────────── */}
-      <div className="flex items-center gap-2.5">
+      {/* ── Right: Language switcher, pills / chips / reset button ──── */}
+      <div className="flex items-center gap-2">
+        {/* Multilingual Language Switcher (EN / தமிழ் / हिंदी) */}
+        <div
+          className="flex items-center bg-raised rounded-full p-0.5 border border-border text-xs"
+          role="group"
+          aria-label="Language selection"
+        >
+          {LANGUAGES.map((l) => {
+            const active = state.language === l.id;
+            return (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => handleLanguageChange(l.id)}
+                aria-label={`Switch language to ${l.native}`}
+                title={`Switch to ${l.native}`}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
+                  active
+                    ? "bg-accent text-accent-text font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text"
+                }`}
+              >
+                {l.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Small Reset button for demo reruns */}
         <button
           type="button"
@@ -67,7 +105,7 @@ export default function Header() {
           role="status"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-issue" aria-hidden="true" />
-          Synthetic data only
+          Synthetic data
         </span>
 
         {/* Applicant chip */}
@@ -87,3 +125,4 @@ export default function Header() {
     </header>
   );
 }
+

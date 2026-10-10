@@ -21,6 +21,7 @@ import type {
   CaseState,
   ChatMessage,
   ChecklistItem,
+  Language,
   MismatchIssue,
   NavView,
   SessionInfo,
@@ -98,6 +99,7 @@ export function getInitialState(): CaseState {
       readingItemId: null,
       session: null,
       sessionStatus: "connecting",
+      language: "en",
     };
   } catch (err) {
     return {
@@ -123,6 +125,7 @@ export function getInitialState(): CaseState {
       readingItemId: null,
       session: null,
       sessionStatus: "error",
+      language: "en",
     };
   }
 }
@@ -133,6 +136,7 @@ export type CaseAction =
   | { type: "SEND_MESSAGE"; payload: ChatMessage }
   | { type: "SET_SESSION"; payload: { user_id: string; session_id: string } }
   | { type: "SET_SESSION_STATUS"; payload: "connecting" | "connected" | "error" }
+  | { type: "SET_LANGUAGE"; payload: Language }
   | { type: "START_STREAMING_MSG"; payload: { id: string } }
   | { type: "APPEND_STREAM_CHUNK"; payload: { id: string; chunk: string } }
   | { type: "FINISH_STREAMING_MSG"; payload: { id: string } }
@@ -158,6 +162,9 @@ export function caseReducer(state: CaseState, action: CaseAction): CaseState {
   switch (action.type) {
     case "SEND_MESSAGE":
       return { ...state, chat: [...state.chat, action.payload] };
+
+    case "SET_LANGUAGE":
+      return { ...state, language: action.payload };
 
     case "SET_SESSION":
       return {
