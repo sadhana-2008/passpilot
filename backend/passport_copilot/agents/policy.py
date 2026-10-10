@@ -24,7 +24,10 @@
 from google.adk import Agent
 import os
 
-from policy_agent import lookup_rules
+try:
+    from backend.policy_agent import lookup_rules
+except ImportError:
+    from policy_agent import lookup_rules
 
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-3.8-flash")
 
