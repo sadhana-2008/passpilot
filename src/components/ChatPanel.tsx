@@ -188,14 +188,33 @@ export default function ChatPanel() {
 
   return (
     <section className="flex flex-col rounded-[var(--radius-panel)] border border-border bg-panel min-h-0">
-      {/* Panel header: Replace gpt-4o with Gemini Flash */}
+      {/* Panel header: Real-time ADK status */}
       <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-text">PassPilot Chat</h2>
         <span
-          className="text-[11px] text-text-secondary font-medium tracking-tight px-2 py-0.5 rounded-full bg-raised border border-border"
-          aria-label="Model: Gemini Flash"
+          className={`text-[11px] font-medium tracking-tight px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${
+            state.sessionStatus === "connected"
+              ? "bg-ok-bg text-ok border-ok/30"
+              : state.sessionStatus === "connecting"
+              ? "bg-issue-bg text-issue border-issue/30"
+              : "bg-needed-bg text-needed border-needed/30"
+          }`}
+          aria-label={`Status: ${state.sessionStatus}`}
         >
-          Gemini Flash
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              state.sessionStatus === "connected"
+                ? "bg-ok"
+                : state.sessionStatus === "connecting"
+                ? "bg-issue animate-pulse"
+                : "bg-needed"
+            }`}
+          />
+          {state.sessionStatus === "connected"
+            ? "Connected (Gemini ADK)"
+            : state.sessionStatus === "connecting"
+            ? "Connecting…"
+            : "Offline"}
         </span>
       </div>
 
@@ -219,7 +238,7 @@ export default function ChatPanel() {
 
             return (
               <div
-                key={idx}
+                key={msg.id || idx}
                 className={`flex items-start gap-2 ${
                   isAgent ? "justify-start" : "justify-end"
                 }`}
@@ -234,7 +253,7 @@ export default function ChatPanel() {
                   </div>
                 )}
 
-                {/* Bubble: user bubbles have lighter raised bg (#242429) than agent bubbles (#15151B) */}
+                {/* Bubble */}
                 <div
                   className={`rounded-[var(--radius-button)] px-3 py-1.5 leading-relaxed
                     ${
@@ -245,7 +264,20 @@ export default function ChatPanel() {
                   `}
                   style={{ maxWidth: "85%", fontSize: "15px" }}
                 >
-                  <div className="whitespace-pre-wrap">{msg.text}</div>
+                  {msg.isStreaming && !msg.text ? (
+                    <div className="py-1">
+                      <TypingIndicator />
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap">
+                      {msg.text}
+                      {msg.isStreaming && (
+                        <span className="inline-block ml-0.5 text-accent animate-pulse font-mono font-bold">
+                          ▋
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Optional declaration draft card */}
                   {msg.type === "declaration" && msg.declarationText && (
@@ -261,6 +293,7 @@ export default function ChatPanel() {
             );
           })
         )}
+
 
         {/* Typing indicator */}
         {isTyping && <TypingIndicator />}

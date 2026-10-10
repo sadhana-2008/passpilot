@@ -11,6 +11,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useReducer,
   type Dispatch,
   type ReactNode,
@@ -22,6 +23,7 @@ import type {
   ChecklistItem,
   MismatchIssue,
   NavView,
+  SessionInfo,
   Stage,
   TraceEntry,
 } from "../types";
@@ -94,6 +96,8 @@ export function getInitialState(): CaseState {
       loadError: null,
       currentView: "case",
       readingItemId: null,
+      session: null,
+      sessionStatus: "connecting",
     };
   } catch (err) {
     return {
@@ -117,6 +121,8 @@ export function getInitialState(): CaseState {
           : "Failed to initialize case data from mock_case.json",
       currentView: "case",
       readingItemId: null,
+      session: null,
+      sessionStatus: "error",
     };
   }
 }
@@ -125,6 +131,11 @@ export function getInitialState(): CaseState {
 
 export type CaseAction =
   | { type: "SEND_MESSAGE"; payload: ChatMessage }
+  | { type: "SET_SESSION"; payload: { user_id: string; session_id: string } }
+  | { type: "SET_SESSION_STATUS"; payload: "connecting" | "connected" | "error" }
+  | { type: "START_STREAMING_MSG"; payload: { id: string } }
+  | { type: "APPEND_STREAM_CHUNK"; payload: { id: string; chunk: string } }
+  | { type: "FINISH_STREAMING_MSG"; payload: { id: string } }
   | { type: "RESOLVE_ITEM"; payload: { id: string } }
   | {
       type: "UPDATE_ITEM_STATUS";
@@ -147,6 +158,50 @@ export function caseReducer(state: CaseState, action: CaseAction): CaseState {
   switch (action.type) {
     case "SEND_MESSAGE":
       return { ...state, chat: [...state.chat, action.payload] };
+
+    case "SET_SESSION":
+      return {
+        ...state,
+        session: action.payload,
+        sessionStatus: "connected",
+      };
+
+    case "SET_SESSION_STATUS":
+      return { ...state, sessionStatus: action.payload };
+
+    case "START_STREAMING_MSG":
+      return {
+        ...state,
+        chat: [
+          ...state.chat,
+          {
+            id: action.payload.id,
+            role: "agent",
+            text: "",
+            type: "text",
+            isStreaming: true,
+          },
+        ],
+      };
+
+    case "APPEND_STREAM_CHUNK":
+      return {
+        ...state,
+        chat: state.chat.map((msg) =>
+          msg.id === action.payload.id
+            ? { ...msg, text: msg.text + action.payload.chunk }
+            : msg
+        ),
+      };
+
+    case "FINISH_STREAMING_MSG":
+      return {
+        ...state,
+        chat: state.chat.map((msg) =>
+          msg.id === action.payload.id ? { ...msg, isStreaming: false } : msg
+        ),
+      };
+
 
     case "RESOLVE_ITEM":
       return {
@@ -254,6 +309,35 @@ export function CaseProvider({ children }: { children: ReactNode }) {
 
   const readiness = computeReadiness(state.checklist);
   const stage = deriveStage(state.checklist);
+
+  /* Initialize ADK session with backend on mount */
+  useEffect(() => {
+    let isSubscribed = true;
+    async function initSession() {
+      dispatch({ type: "SET_SESSION_STATUS", payload: "connecting" });
+      try {
+        const res = await fetch("/api/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: SessionInfo = await res.json();
+        if (isSubscribed) {
+          dispatch({ type: "SET_SESSION", payload: data });
+        }
+      } catch (err) {
+        console.warn("Could not connect to backend ADK session, using local fallback:", err);
+        if (isSubscribed) {
+          dispatch({ type: "SET_SESSION_STATUS", payload: "error" });
+        }
+      }
+    }
+    initSession();
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
 
   const getNowTime = () => {
     const d = new Date();
@@ -468,40 +552,84 @@ export function CaseProvider({ children }: { children: ReactNode }) {
     }, 400);
   };
 
-  /* Demo behavior 4: Free text user message */
-  const executeFreeText = (text: string) => {
+  /* Send message to backend agent with streaming support */
+  const executeFreeText = async (text: string) => {
     if (!text.trim()) return;
 
+    // Send user message to state
+    dispatch({ type: "SEND_MESSAGE", payload: { role: "user", text } });
+
+    // Handle special offline demo shortcuts if user specifically invokes them
     const lower = text.toLowerCase();
-    if (lower.includes("name") && lower.includes("declaration")) {
-      dispatch({ type: "SEND_MESSAGE", payload: { role: "user", text } });
-      setTimeout(executeDraftDeclaration, 600);
+    if (lower === "draft name declaration") {
+      setTimeout(executeDraftDeclaration, 400);
       return;
     }
-    if (
-      lower.includes("address") &&
-      (lower.includes("fix") || lower.includes("proof"))
-    ) {
-      dispatch({ type: "SEND_MESSAGE", payload: { role: "user", text } });
-      setTimeout(executeFixAddress, 600);
+    if (lower === "fix address proof") {
+      setTimeout(executeFixAddress, 400);
       return;
     }
-    if (lower.includes("approve")) {
+    if (lower === "just approve it") {
       executeJustApprove();
       return;
     }
 
-    dispatch({ type: "SEND_MESSAGE", payload: { role: "user", text } });
-    setTimeout(() => {
-      dispatch({
-        type: "SEND_MESSAGE",
-        payload: {
-          role: "agent",
-          text: `I've noted that: "${text}". I will factor this into the officer's case notes and verify any related compliance items.`,
-          type: "text",
-        },
-      });
-    }, 600);
+    // Connect to backend API if active session exists
+    if (state.session) {
+      const msgId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      dispatch({ type: "START_STREAMING_MSG", payload: { id: msgId } });
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: state.session.user_id,
+            session_id: state.session.session_id,
+            message: text,
+          }),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.body) throw new Error("No response body");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          dispatch({
+            type: "APPEND_STREAM_CHUNK",
+            payload: { id: msgId, chunk },
+          });
+        }
+      } catch (err) {
+        console.error("Backend streaming chat error:", err);
+        dispatch({
+          type: "APPEND_STREAM_CHUNK",
+          payload: {
+            id: msgId,
+            chunk: `\n\n⚠️ Could not communicate with backend server. (Is server running on http://127.0.0.1:8000?)`,
+          },
+        });
+      } finally {
+        dispatch({ type: "FINISH_STREAMING_MSG", payload: { id: msgId } });
+      }
+    } else {
+      // Local fallback echo when session is not connected
+      setTimeout(() => {
+        dispatch({
+          type: "SEND_MESSAGE",
+          payload: {
+            role: "agent",
+            text: `I've noted that: "${text}". Connect the backend server to enable real-time Gemini agent intelligence.`,
+            type: "text",
+          },
+        });
+      }, 500);
+    }
   };
 
   const openMismatchModal = (issue: MismatchIssue) => {

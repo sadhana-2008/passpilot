@@ -44,6 +44,7 @@ export interface ChatMessage {
     time: string;
     reference: string;
   };
+  isStreaming?: boolean;
 }
 
 /* ── Handoff ────────────────────────────────────────────────────────── */
@@ -83,6 +84,11 @@ export interface MismatchIssue {
 
 /* ── Full case state ────────────────────────────────────────────────── */
 
+export interface SessionInfo {
+  user_id: string;
+  session_id: string;
+}
+
 export interface CaseState {
   applicant: string;
   caseType: string;
@@ -106,4 +112,9 @@ export interface CaseState {
   currentView: NavView;
   /** Whether an upload simulation is active for a checklist item */
   readingItemId: string | null;
+  /** Active backend session info */
+  session: SessionInfo | null;
+  /** Connection status with FastAPI backend */
+  sessionStatus: "connecting" | "connected" | "error";
 }
+
