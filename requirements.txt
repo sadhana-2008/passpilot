@@ -1,0 +1,5 @@
+google-adk==2.11.0
+google-genai
+pytest
+python-dotenv
+reportlab

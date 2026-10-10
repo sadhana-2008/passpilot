@@ -1,0 +1,25 @@
+{
+  "docs": {
+    "doc_1": {
+      "document_type": "Aadhaar",
+      "name": "Sharan Kumar",
+      "dob": "1998-05-15",
+      "address": "123 Anna Salai, Chennai",
+      "expiry_date": null
+    },
+    "doc_2": {
+      "document_type": "Voter ID",
+      "name": "Sharan K",
+      "dob": "1998-05-15",
+      "address": "123 Anna Salai, Chennai",
+      "expiry_date": null
+    },
+    "doc_3": {
+      "document_type": "Driving License",
+      "name": "Sharan Kumar",
+      "dob": "1998-05-15",
+      "address": "123 Anna Salai, Chennai",
+      "expiry_date": "2024-01-01"
+    }
+  }
+}

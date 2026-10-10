@@ -1,0 +1,14 @@
+{
+  "statuses": {
+    "REF12345": {
+      "status": "Pending Police Verification",
+      "interpretation": "Your application is under review by the local police station.",
+      "next_step": "Wait for the police officer to contact you, or visit the local station with your original documents."
+    },
+    "REF67890": {
+      "status": "Passport Printed",
+      "interpretation": "Your passport has been printed and will be dispatched soon.",
+      "next_step": "You will receive an SMS with tracking details shortly."
+    }
+  }
+}
