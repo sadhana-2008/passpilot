@@ -1,1 +1,124 @@
-/* global reset handled in App.css */
+/* ── Tailwind v4 entry ──────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* ── Fonts (via @fontsource) ────────────────────────────────────────── */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* ── Design-system CSS variables ────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --color-bg:      #0E0E12;
+  --color-panel:   #15151B;
+  --color-raised:  #1C1C24;
+  --color-border:  #2A2A35;
+
+  /* Text */
+  --color-text:           #E8E6E1;
+  --color-text-secondary: #8F8D88;
+  --color-text-muted:     #5F5D59;
+
+  /* Accent – muted violet */
+  --color-accent:       #8B7CF6;
+  --color-accent-hover: #A093F8;
+  --color-accent-text:  #FFFFFF;
+  --color-accent-bg:    rgba(139, 124, 246, 0.14);
+
+  /* Status (no yellow-brown fills, no pink) */
+  --color-ok:      #6FCF97;
+  --color-issue:   #F2A65A;
+  --color-needed:  #EB7A7A;
+
+  /* Status badge backgrounds (14% tint) */
+  --color-ok-bg:      rgba(111, 207, 151, 0.14);
+  --color-issue-bg:   rgba(242, 166, 90, 0.14);
+  --color-needed-bg:  rgba(235, 122, 122, 0.14);
+
+  /* Fonts */
+  --font-ui:   "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Radii */
+  --radius-panel:  10px;
+  --radius-button: 8px;
+}
+
+/* ── Tailwind v4 theme tokens ───────────────────────────────────────── */
+@theme {
+  --color-bg:      #0E0E12;
+  --color-panel:   #15151B;
+  --color-raised:  #1C1C24;
+  --color-border:  #2A2A35;
+
+  --color-text:           #E8E6E1;
+  --color-text-secondary: #8F8D88;
+  --color-text-muted:     #5F5D59;
+
+  --color-accent:       #8B7CF6;
+  --color-accent-hover: #A093F8;
+  --color-accent-text:  #FFFFFF;
+  --color-accent-bg:    rgba(139, 124, 246, 0.14);
+
+  --color-ok:      #6FCF97;
+  --color-issue:   #F2A65A;
+  --color-needed:  #EB7A7A;
+
+  --color-ok-bg:      rgba(111, 207, 151, 0.14);
+  --color-issue-bg:   rgba(242, 166, 90, 0.14);
+  --color-needed-bg:  rgba(235, 122, 122, 0.14);
+
+  --font-ui:   "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-panel:  10px;
+  --radius-button: 8px;
+}
+
+/* ── Global resets / base styles ────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;           /* page never scrolls */
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus-visible rings across all interactive elements in accent color */
+:focus-visible {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 1px !important;
+}
+
+/* Utility: tool / mono names */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
