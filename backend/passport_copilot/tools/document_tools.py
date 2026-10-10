@@ -83,11 +83,42 @@ def compare_documents(extracted_docs: list[dict]) -> list[dict]:
     return issues
 
 
-def validate_documents(documents: list[dict]) -> dict:
+def normalize_document(doc: dict) -> dict:
+    """Normalizes document representations, supporting both flat dicts and nested fields dicts."""
+    if not isinstance(doc, dict):
+        return {}
+    fields = doc.get("fields") if isinstance(doc.get("fields"), dict) else {}
+    doc_type = doc.get("type") or doc.get("document_type") or "Document"
+    name = fields.get("name") if "name" in fields else doc.get("name")
+    dob = (
+        fields.get("date_of_birth")
+        or fields.get("dob")
+        or doc.get("date_of_birth")
+        or doc.get("dob")
+    )
+    expiry = (
+        fields.get("expiry_date")
+        or fields.get("expiry")
+        or doc.get("expiry_date")
+        or doc.get("expiry")
+    )
+    return {
+        "document_type": doc_type,
+        "name": name,
+        "dob": dob,
+        "date_of_birth": dob,
+        "expiry_date": expiry,
+        "raw": doc,
+    }
+
+
+def validate_documents(documents: list[dict], case_id: str | None = None) -> dict:
     """
     Validates a list of document field dictionaries for consistency, expiry, and completeness.
+    Supports both flat dictionary and nested format ({"type": "...", "fields": {"name": "..."}}).
     Returns structured results:
     {
+        "case_id": str (optional),
         "checks": [
             {
                 "check_id": str,
@@ -105,7 +136,7 @@ def validate_documents(documents: list[dict]) -> dict:
     disclaimer = "PassPilot is an unofficial assistant and the Passport Office makes the final decision."
 
     if not documents or not isinstance(documents, list) or len(documents) == 0:
-        return {
+        res = {
             "checks": [
                 {
                     "check_id": "CHK_DATA_COMPLETENESS",
@@ -119,15 +150,19 @@ def validate_documents(documents: list[dict]) -> dict:
             "has_insufficient_data": True,
             "disclaimer": disclaimer,
         }
+        if case_id is not None:
+            res["case_id"] = case_id
+        return res
 
+    norm_docs = [normalize_document(d) for d in documents]
     today = datetime.now().strftime("%Y-%m-%d")
     checks = []
 
     # Check 1: Document count sufficiency
-    if len(documents) < 2:
-        doc = documents[0]
+    if len(norm_docs) < 2:
+        doc = norm_docs[0]
         expiry = doc.get("expiry_date")
-        if expiry and expiry < today:
+        if expiry and str(expiry) < today:
             checks.append({
                 "check_id": "CHK_EXPIRY",
                 "name": "Document Expiry Check",
@@ -142,17 +177,20 @@ def validate_documents(documents: list[dict]) -> dict:
             "details": "At least two documents are required to perform cross-document consistency checks.",
             "requires_human_review": True,
         })
-        return {
+        res = {
             "checks": checks,
             "requires_human_review": True,
             "has_insufficient_data": True,
             "disclaimer": disclaimer,
         }
+        if case_id is not None:
+            res["case_id"] = case_id
+        return res
 
     # Check 2: Missing essential fields
     missing_name_docs = [
         doc.get("document_type", f"Doc {i+1}")
-        for i, doc in enumerate(documents)
+        for i, doc in enumerate(norm_docs)
         if not doc.get("name") or not str(doc.get("name")).strip()
     ]
     if missing_name_docs:
@@ -166,12 +204,12 @@ def validate_documents(documents: list[dict]) -> dict:
 
     # Check 3: Name Consistency across documents
     if not missing_name_docs:
-        base_doc = documents[0]
+        base_doc = norm_docs[0]
         base_name = str(base_doc.get("name", "")).strip()
         base_type = base_doc.get("document_type", "Primary Document")
         name_mismatches = []
 
-        for i, doc in enumerate(documents[1:], start=2):
+        for i, doc in enumerate(norm_docs[1:], start=2):
             d_name = str(doc.get("name", "")).strip()
             d_type = doc.get("document_type", f"Document {i}")
             if base_name.lower() != d_name.lower():
@@ -195,12 +233,12 @@ def validate_documents(documents: list[dict]) -> dict:
             })
 
     # Check 4: Date of Birth Consistency
-    base_dob = str(documents[0].get("dob", "")).strip() if documents[0].get("dob") else None
-    base_type = documents[0].get("document_type", "Primary Document")
+    base_dob = str(norm_docs[0].get("dob", "")).strip() if norm_docs[0].get("dob") else None
+    base_type = norm_docs[0].get("document_type", "Primary Document")
     dob_mismatches = []
     has_dob_comparison = False
 
-    for i, doc in enumerate(documents[1:], start=2):
+    for i, doc in enumerate(norm_docs[1:], start=2):
         d_dob = str(doc.get("dob", "")).strip() if doc.get("dob") else None
         d_type = doc.get("document_type", f"Document {i}")
         if base_dob and d_dob:
@@ -227,7 +265,7 @@ def validate_documents(documents: list[dict]) -> dict:
 
     # Check 5: Document Expiry
     expired_list = []
-    for i, doc in enumerate(documents, start=1):
+    for i, doc in enumerate(norm_docs, start=1):
         expiry = doc.get("expiry_date")
         d_type = doc.get("document_type", f"Document {i}")
         if expiry and str(expiry) < today:
@@ -253,12 +291,16 @@ def validate_documents(documents: list[dict]) -> dict:
     has_insufficient = any(c.get("status") == "insufficient_data" for c in checks)
     requires_review = any(c.get("requires_human_review", False) for c in checks) or has_insufficient
 
-    return {
+    result = {
         "checks": checks,
         "requires_human_review": requires_review,
         "has_insufficient_data": has_insufficient,
         "disclaimer": disclaimer,
     }
+    if case_id is not None:
+        result["case_id"] = case_id
+
+    return result
 
 
 def call_document_validation_api(

@@ -11,6 +11,14 @@ from typing import AsyncGenerator
 
 from dotenv import load_dotenv
 
+# Ensure root workspace and backend directories are in sys.path
+import sys
+_current_dir = Path(__file__).resolve().parent
+_workspace_dir = _current_dir.parent
+for _p in [str(_workspace_dir), str(_current_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 # Load env BEFORE importing agents so MODEL_NAME is available at import time
 load_dotenv()
 
@@ -22,8 +30,12 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from pydantic import BaseModel
 
-from backend.passport_copilot.agent import root_agent
-from backend.passport_copilot.tools.document_tools import validate_documents
+try:
+    from backend.passport_copilot.agent import root_agent
+    from backend.passport_copilot.tools.document_tools import validate_documents
+except ImportError:
+    from passport_copilot.agent import root_agent
+    from passport_copilot.tools.document_tools import validate_documents
 
 # ─── Session management ────────────────────────────────────────────────────────
 session_service = InMemorySessionService()
@@ -72,6 +84,7 @@ class ChatRequest(BaseModel):
 
 
 class DocumentValidationRequest(BaseModel):
+    case_id: str | None = None
     documents: list[dict] = []
     extracted_docs: list[dict] | None = None
 
@@ -122,7 +135,7 @@ async def chat(req: ChatRequest):
 async def validate_documents_endpoint(req: DocumentValidationRequest):
     """Validate uploaded document fields for consistency, expiry, and completeness."""
     docs = req.documents or req.extracted_docs or []
-    return validate_documents(docs)
+    return validate_documents(docs, case_id=req.case_id)
 
 
 @app.get("/api/rules")
@@ -144,6 +157,27 @@ async def get_rules_endpoint(status: str | None = None):
     return {"status": "ok", "rules": rules}
 
 
+@app.get("/")
+async def root():
+    return {
+        "name": "PassPilot API",
+        "status": "online",
+        "docs_url": "/docs",
+        "endpoints": [
+            "/api/health",
+            "/api/rules",
+            "/api/documents/validate",
+            "/api/session",
+            "/api/chat"
+        ]
+    }
+
+
 @app.get("/api/health")
 async def health():
+    return {"status": "ok"}
+
+
+@app.get("/health")
+async def health_root():
     return {"status": "ok"}

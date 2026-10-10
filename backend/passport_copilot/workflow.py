@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .tools.document_tools import call_document_validation_api
+from .tools.document_validation import validate_documents as call_validate_api, get_sourced_rules
 from .agents.handoff import assess_handoff, filter_verified_rules
 
 
@@ -37,6 +37,7 @@ def fetch_verified_policy_rules(case_profile: dict | None = None) -> list[dict]:
 
 def orchestrate_document_validation(
     documents: list[dict],
+    case_id: str | None = None,
     case_profile: dict | None = None,
     validation_api_url: str | None = None,
 ) -> dict[str, Any]:
@@ -48,8 +49,10 @@ def orchestrate_document_validation(
     4. Calls the handoff assessment when appropriate, passing actual results and verified rules.
     5. Returns the validation result and handoff assessment together.
     """
+    effective_case_id = case_id or "CASE-AUTO-001"
+
     # 1. Call document validation API
-    val_resp = call_document_validation_api(documents, api_url=validation_api_url)
+    val_resp = call_validate_api(case_id=effective_case_id, documents=documents, api_url=validation_api_url)
 
     # 2. Check for service failure or missing validation result
     if val_resp.get("status") == "error":
@@ -58,6 +61,7 @@ def orchestrate_document_validation(
         return {
             "status": "error",
             "error": error_msg,
+            "case_id": effective_case_id,
             "validation_result": None,
             "handoff_assessment": handoff_res,
         }
@@ -68,6 +72,7 @@ def orchestrate_document_validation(
         return {
             "status": "error",
             "error": error_msg,
+            "case_id": effective_case_id,
             "validation_result": None,
             "handoff_assessment": handoff_res,
         }
@@ -84,6 +89,7 @@ def orchestrate_document_validation(
     # 5. Return both together
     return {
         "status": "ok",
+        "case_id": effective_case_id,
         "validation_result": val_resp,
         "handoff_assessment": handoff_res,
     }
