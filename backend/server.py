@@ -2,9 +2,11 @@
 FastAPI server for PassPilot — bridges the React frontend to the ADK agent.
 """
 import asyncio
+import json
 import os
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from dotenv import load_dotenv
@@ -21,6 +23,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from backend.passport_copilot.agent import root_agent
+from backend.passport_copilot.tools.document_tools import validate_documents
 
 # ─── Session management ────────────────────────────────────────────────────────
 session_service = InMemorySessionService()
@@ -68,6 +71,11 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class DocumentValidationRequest(BaseModel):
+    documents: list[dict] = []
+    extracted_docs: list[dict] | None = None
+
+
 # ─── Endpoints ─────────────────────────────────────────────────────────────────
 @app.post("/api/session", response_model=StartResponse)
 async def create_session(req: StartRequest):
@@ -108,6 +116,32 @@ async def chat(req: ChatRequest):
             yield f"\n\n[Error: {exc}]"
 
     return StreamingResponse(event_stream(), media_type="text/plain")
+
+
+@app.post("/api/documents/validate")
+async def validate_documents_endpoint(req: DocumentValidationRequest):
+    """Validate uploaded document fields for consistency, expiry, and completeness."""
+    docs = req.documents or req.extracted_docs or []
+    return validate_documents(docs)
+
+
+@app.get("/api/rules")
+async def get_rules_endpoint(status: str | None = None):
+    """Return sourced passport rules from rules.json."""
+    rules_file = Path(__file__).parent / "rules.json"
+    if not rules_file.exists():
+        raise HTTPException(status_code=404, detail="rules.json not found")
+    try:
+        with rules_file.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read rules: {exc}")
+
+    rules = data.get("rules", [])
+    if status:
+        rules = [r for r in rules if str(r.get("status", "")).lower() == status.lower()]
+
+    return {"status": "ok", "rules": rules}
 
 
 @app.get("/api/health")

@@ -2,6 +2,7 @@ import os
 from google.adk import Agent
 from google.adk.tools import AgentTool
 from .agents import intake_agent, policy_agent, document_agent, handoff_agent
+from .workflow import orchestrate_document_validation
 
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-3.8-flash")
 
@@ -12,10 +13,14 @@ Your job is to route user requests, share context, merge results, handle gaps, a
 Flow:
 1. If no `case_profile` is in session state, hand off to `intake_agent` to gather requirements.
 2. Once `case_profile` is ready, call `policy_agent` to get the checklist.
-3. If the user uploaded documents, call `document_agent` to verify them. (Run policy and document work in parallel in the same turn if both are needed).
+3. If the user uploaded documents or asks to compare/validate document fields:
+   - Call `orchestrate_document_validation` (or `document_agent` via the validation API) to validate actual document fields.
+   - The validation workflow examines the structured response and invokes the handoff assessment when the response indicates human review, insufficient data, unresolved discrepancies, or missing evidence.
+   - If validation fails, report the service failure and do not pretend the assessment succeeded.
 4. Pass the explicit data each AgentTool needs (e.g. `case_profile=...`, `checklist=...`).
-5. Merge results: if `document_agent` finds an issue that affects the checklist (e.g. name mismatch), add a "resolve this first" step with the suggested fix to the checklist.
-6. Call `handoff_agent` to offer a mock appointment and produce the PDF packet.
+5. Merge results: if document validation finds an issue that affects the checklist (e.g. name mismatch), add a "resolve this first" step with the suggested fix to the checklist.
+6. When human review is recommended or when ready for booking, call `handoff_agent` to review findings, offer a mock appointment, and produce the PDF packet.
+   - Do not call `handoff_agent` unnecessarily for unrelated questions.
 7. If any specialist fails or returns nothing, tell the user what is missing and ask for it. Do not guess.
 
 OUTPUT FORMAT
@@ -43,8 +48,9 @@ root_agent = Agent(
     tools=[
         AgentTool(agent=enforce_safety_instructions(policy_agent)),
         AgentTool(agent=enforce_safety_instructions(document_agent)),
-        AgentTool(agent=enforce_safety_instructions(handoff_agent))
+        AgentTool(agent=enforce_safety_instructions(handoff_agent)),
+        orchestrate_document_validation,
     ],
-    model=MODEL_NAME
+    model=MODEL_NAME,
 )
 root_agent = enforce_safety_instructions(root_agent)

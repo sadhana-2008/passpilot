@@ -81,3 +81,221 @@ def compare_documents(extracted_docs: list[dict]) -> list[dict]:
             })
 
     return issues
+
+
+def validate_documents(documents: list[dict]) -> dict:
+    """
+    Validates a list of document field dictionaries for consistency, expiry, and completeness.
+    Returns structured results:
+    {
+        "checks": [
+            {
+                "check_id": str,
+                "name": str,
+                "status": "passed" | "failed" | "insufficient_data",
+                "details": str,
+                "requires_human_review": bool
+            }
+        ],
+        "requires_human_review": bool,
+        "has_insufficient_data": bool,
+        "disclaimer": str
+    }
+    """
+    disclaimer = "PassPilot is an unofficial assistant and the Passport Office makes the final decision."
+
+    if not documents or not isinstance(documents, list) or len(documents) == 0:
+        return {
+            "checks": [
+                {
+                    "check_id": "CHK_DATA_COMPLETENESS",
+                    "name": "Document Completeness Check",
+                    "status": "insufficient_data",
+                    "details": "No documents provided for validation.",
+                    "requires_human_review": True,
+                }
+            ],
+            "requires_human_review": True,
+            "has_insufficient_data": True,
+            "disclaimer": disclaimer,
+        }
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    checks = []
+
+    # Check 1: Document count sufficiency
+    if len(documents) < 2:
+        doc = documents[0]
+        expiry = doc.get("expiry_date")
+        if expiry and expiry < today:
+            checks.append({
+                "check_id": "CHK_EXPIRY",
+                "name": "Document Expiry Check",
+                "status": "failed",
+                "details": f"Document '{doc.get('document_type', 'Document 1')}' expired on {expiry}.",
+                "requires_human_review": True,
+            })
+        checks.append({
+            "check_id": "CHK_DOC_COUNT",
+            "name": "Document Count Check",
+            "status": "insufficient_data",
+            "details": "At least two documents are required to perform cross-document consistency checks.",
+            "requires_human_review": True,
+        })
+        return {
+            "checks": checks,
+            "requires_human_review": True,
+            "has_insufficient_data": True,
+            "disclaimer": disclaimer,
+        }
+
+    # Check 2: Missing essential fields
+    missing_name_docs = [
+        doc.get("document_type", f"Doc {i+1}")
+        for i, doc in enumerate(documents)
+        if not doc.get("name") or not str(doc.get("name")).strip()
+    ]
+    if missing_name_docs:
+        checks.append({
+            "check_id": "CHK_NAME_PRESENCE",
+            "name": "Name Field Completeness",
+            "status": "insufficient_data",
+            "details": f"Applicant name is missing in: {', '.join(missing_name_docs)}.",
+            "requires_human_review": True,
+        })
+
+    # Check 3: Name Consistency across documents
+    if not missing_name_docs:
+        base_doc = documents[0]
+        base_name = str(base_doc.get("name", "")).strip()
+        base_type = base_doc.get("document_type", "Primary Document")
+        name_mismatches = []
+
+        for i, doc in enumerate(documents[1:], start=2):
+            d_name = str(doc.get("name", "")).strip()
+            d_type = doc.get("document_type", f"Document {i}")
+            if base_name.lower() != d_name.lower():
+                name_mismatches.append(f"'{base_name}' ({base_type}) vs '{d_name}' ({d_type})")
+
+        if name_mismatches:
+            checks.append({
+                "check_id": "CHK_NAME_MATCH",
+                "name": "Name Consistency Check",
+                "status": "failed",
+                "details": f"Name mismatch detected: {'; '.join(name_mismatches)}.",
+                "requires_human_review": True,
+            })
+        else:
+            checks.append({
+                "check_id": "CHK_NAME_MATCH",
+                "name": "Name Consistency Check",
+                "status": "passed",
+                "details": "Name matches consistently across all submitted documents.",
+                "requires_human_review": False,
+            })
+
+    # Check 4: Date of Birth Consistency
+    base_dob = str(documents[0].get("dob", "")).strip() if documents[0].get("dob") else None
+    base_type = documents[0].get("document_type", "Primary Document")
+    dob_mismatches = []
+    has_dob_comparison = False
+
+    for i, doc in enumerate(documents[1:], start=2):
+        d_dob = str(doc.get("dob", "")).strip() if doc.get("dob") else None
+        d_type = doc.get("document_type", f"Document {i}")
+        if base_dob and d_dob:
+            has_dob_comparison = True
+            if base_dob != d_dob:
+                dob_mismatches.append(f"'{base_dob}' ({base_type}) vs '{d_dob}' ({d_type})")
+
+    if dob_mismatches:
+        checks.append({
+            "check_id": "CHK_DOB_MATCH",
+            "name": "Date of Birth Consistency Check",
+            "status": "failed",
+            "details": f"Date of birth mismatch detected: {'; '.join(dob_mismatches)}.",
+            "requires_human_review": True,
+        })
+    elif has_dob_comparison:
+        checks.append({
+            "check_id": "CHK_DOB_MATCH",
+            "name": "Date of Birth Consistency Check",
+            "status": "passed",
+            "details": "Date of birth matches consistently across submitted documents.",
+            "requires_human_review": False,
+        })
+
+    # Check 5: Document Expiry
+    expired_list = []
+    for i, doc in enumerate(documents, start=1):
+        expiry = doc.get("expiry_date")
+        d_type = doc.get("document_type", f"Document {i}")
+        if expiry and str(expiry) < today:
+            expired_list.append(f"{d_type} (expired on {expiry})")
+
+    if expired_list:
+        checks.append({
+            "check_id": "CHK_EXPIRY",
+            "name": "Document Expiry Check",
+            "status": "failed",
+            "details": f"Expired document proof detected: {', '.join(expired_list)}.",
+            "requires_human_review": True,
+        })
+    else:
+        checks.append({
+            "check_id": "CHK_EXPIRY",
+            "name": "Document Expiry Check",
+            "status": "passed",
+            "details": "All submitted documents are within their validity period.",
+            "requires_human_review": False,
+        })
+
+    has_insufficient = any(c.get("status") == "insufficient_data" for c in checks)
+    requires_review = any(c.get("requires_human_review", False) for c in checks) or has_insufficient
+
+    return {
+        "checks": checks,
+        "requires_human_review": requires_review,
+        "has_insufficient_data": has_insufficient,
+        "disclaimer": disclaimer,
+    }
+
+
+def call_document_validation_api(
+    documents: list[dict],
+    api_url: str | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Calls the document validation API endpoint (POST /api/documents/validate).
+    Configurable via DOCUMENT_VALIDATION_URL environment variable.
+    """
+    import httpx
+
+    target_url = api_url or os.getenv(
+        "DOCUMENT_VALIDATION_URL",
+        "http://localhost:8000/api/documents/validate"
+    )
+
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(target_url, json={"documents": documents})
+            if resp.status_code == 200:
+                return resp.json()
+            return {
+                "status": "error",
+                "error": f"Validation API returned HTTP {resp.status_code}: {resp.text}",
+                "checks": [],
+                "requires_human_review": False,
+                "has_insufficient_data": False,
+                "disclaimer": "PassPilot is an unofficial assistant and the Passport Office makes the final decision.",
+            }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "error": f"Document validation API is unreachable or failed: {exc}",
+            "checks": [],
+            "requires_human_review": False,
+            "has_insufficient_data": False,
+            "disclaimer": "PassPilot is an unofficial assistant and the Passport Office makes the final decision.",
+        }
